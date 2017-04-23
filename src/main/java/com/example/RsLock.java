@@ -10,19 +10,21 @@ import java.util.UUID;
  * Created by think on 17-4-23.
  */
 public class RsLock {
-    private static final String KEY_TMPL = "GUID_RSLOCK{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
-    private static final String WATCHER_KEY_TMPL = "GUID_RSLOCK_WATCHER{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
+    private static final String KEY_TMPL = "GUID_RSLOCK{8125CFBE-9237-4E0A-947C-CE99A1BD587E}{%s}";
+    private static final String WATCHER_KEY_TMPL = "GUID_RSLOCK_WATCHER{8125CFBE-9237-4E0A-947C-CE99A1BD587E}{%s}";
     private final Jedis jedis;
     private final String key;
     private final String watcherKey;
     private final int timeout;
     private final String identity;
     private static final Random random = new Random();
-    private  final int maxInterval;
+    private final int maxInterval;
+    private long lockedTime = 0;
 
     public RsLock(Jedis jedis, String key, int timeout) {
-        this(jedis,key,timeout,100);
+        this(jedis, key, timeout, 100);
     }
+
     public RsLock(Jedis jedis, String key, int timeout, int maxInterval) {
         this.jedis = jedis;
         this.key = getLockKey(key);
@@ -57,9 +59,14 @@ public class RsLock {
     private boolean lockNX() {
         Long setnx = jedis.setnx(key, identity);
         if (setnx == 1) {
-            jedis.expire(key, timeout);
-            jedis.setex(watcherKey, timeout, identity);
-            return true;
+            Long expire = jedis.expire(key, timeout);
+            String setex = jedis.setex(watcherKey, timeout, identity);
+            if (expire == 1 && "ok".equalsIgnoreCase(setex)) {
+                if (lockedTime <= 0) {
+                    lockedTime = System.currentTimeMillis();
+                }
+                return true;
+            }
         }
         return false;
     }
@@ -81,17 +88,21 @@ public class RsLock {
         return false;
     }
 
-    public void unlock() throws RLockTimeoutException {
+    public void unlock() throws RsLockTimeoutException {
         String exist = jedis.get(key);
         if (identity.equalsIgnoreCase(exist)) {
             jedis.del(key, watcherKey);
         } else {
-            throw new RLockTimeoutException();
+            throw new RsLockTimeoutException(System.currentTimeMillis() - lockedTime);
         }
     }
 
-    public static class RLockTimeoutException extends Exception {
+    public static class RsLockTimeoutException extends Exception {
+        private static final String MSG_TMPL = "RLockTimeout:duration=%s";
 
+        RsLockTimeoutException(long duration) {
+            super(String.format(MSG_TMPL, duration));
+        }
     }
 }
 
