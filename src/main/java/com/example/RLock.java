@@ -6,6 +6,7 @@ import java.util.Random;
 import java.util.UUID;
 
 /**
+ * https://redis.io/topics/distlock
  * Created by think on 17-4-23.
  */
 public class RLock {
