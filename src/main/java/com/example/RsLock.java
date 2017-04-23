@@ -34,11 +34,11 @@ public class RsLock {
         this.identity = UUID.randomUUID().toString();
     }
 
-    public static String getLockKey(String key) {
+    private static String getLockKey(String key) {
         return String.format(KEY_TMPL, key);
     }
 
-    public static String getGuardKey(String key) {
+    private static String getGuardKey(String key) {
         return String.format(GUARD_KEY_TMPL, key);
     }
 
