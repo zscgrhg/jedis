@@ -10,12 +10,7 @@ import java.util.Random;
 public class Test {
     static Jedis jedis = new Jedis("localhost");
 
-    public static void tryLock(String key, int sec) {
-        Long setnx = jedis.setnx(key, String.valueOf(1));
-        if (1 == setnx) {
-            jedis.expire(key, sec);
-        }
-    }
+
 
     public static void main(String[] args) throws InterruptedException {
 
