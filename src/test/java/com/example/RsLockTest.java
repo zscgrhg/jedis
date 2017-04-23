@@ -37,7 +37,7 @@ public class RsLockTest {
     }
 
     @Test(expected = RsLock.RsLockTimeoutException.class)
-    public void testUnlock() throws RsLock.RsLockTimeoutException {
+    public void testUnlock() throws RsLock.RsLockTimeoutException, InterruptedException {
         RsLock rsLock = new RsLock(jedis, "testUnlock", 1);
         if(rsLock.tryLockWithinSeconds(10)){
 
@@ -47,8 +47,6 @@ public class RsLockTest {
             } catch (RsLock.RsLockTimeoutException e) {
                 e.printStackTrace();
                 throw e;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
         }
     }
