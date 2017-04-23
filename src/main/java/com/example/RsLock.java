@@ -11,10 +11,10 @@ import java.util.UUID;
  */
 public class RsLock {
     private static final String KEY_TMPL = "GUID_RSLOCK{8125CFBE-9237-4E0A-947C-CE99A1BD587E}{%s}";
-    private static final String WATCHER_KEY_TMPL = "GUID_RSLOCK_WATCHER{8125CFBE-9237-4E0A-947C-CE99A1BD587E}{%s}";
+    private static final String GUARD_KEY_TMPL = "GUID_RSLOCK_GUARD{8125CFBE-9237-4E0A-947C-CE99A1BD587E}{%s}";
     private final Jedis jedis;
     private final String key;
-    private final String watcherKey;
+    private final String guardKey;
     private final int timeout;
     private final String identity;
     private static final Random random = new Random();
@@ -28,7 +28,7 @@ public class RsLock {
     public RsLock(Jedis jedis, String key, int timeout, int maxInterval) {
         this.jedis = jedis;
         this.key = getLockKey(key);
-        this.watcherKey = getWatcherKey(key);
+        this.guardKey = getGuardKey(key);
         this.timeout = timeout;
         this.maxInterval = maxInterval;
         this.identity = UUID.randomUUID().toString();
@@ -38,16 +38,16 @@ public class RsLock {
         return String.format(KEY_TMPL, key);
     }
 
-    public static String getWatcherKey(String key) {
-        return String.format(WATCHER_KEY_TMPL, key);
+    public static String getGuardKey(String key) {
+        return String.format(GUARD_KEY_TMPL, key);
     }
 
     public boolean lock() {
         if (lockNX()) {
             return true;
         } else {
-            String watcher = jedis.get(watcherKey);
-            if (null == watcher) {
+            String guard = jedis.get(guardKey);
+            if (null == guard) {
                 jedis.del(key);
                 return lockNX();
             } else {
@@ -60,7 +60,7 @@ public class RsLock {
         Long setnx = jedis.setnx(key, identity);
         if (setnx == 1) {
             Long expire = jedis.expire(key, timeout);
-            String setex = jedis.setex(watcherKey, timeout, identity);
+            String setex = jedis.setex(guardKey, timeout, identity);
             if (expire == 1 && "ok".equalsIgnoreCase(setex)) {
                 if (lockedTime <= 0) {
                     lockedTime = System.currentTimeMillis();
@@ -70,38 +70,50 @@ public class RsLock {
         }
         return false;
     }
+    /**
+     * @param sec seconds
+     */
+    public boolean tryLockWithinSeconds(int sec) {
+       return tryLockWithin(sec*1000L);
+    }
+    /**
+     * @param retryTimeout ms
+     */
+    public boolean tryLockWithin(long retryTimeout) {
+        long a = System.currentTimeMillis() + retryTimeout;
 
-    public boolean tryLock(long timeout) {
-        long a = System.currentTimeMillis() + timeout;
-        while (System.currentTimeMillis() < a) {
+        while (true) {
             if (lock()) {
                 return true;
             } else {
-                try {
-                    Thread.sleep(random.nextInt(maxInterval));
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                if (System.currentTimeMillis() < a) {
+                    try {
+                        Thread.sleep(random.nextInt(maxInterval));
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                } else {
                     return false;
                 }
             }
         }
-        return false;
     }
 
     public void unlock() throws RsLockTimeoutException {
         String exist = jedis.get(key);
         if (identity.equalsIgnoreCase(exist)) {
-            jedis.del(key, watcherKey);
+            jedis.del(key, guardKey);
         } else {
-            throw new RsLockTimeoutException(System.currentTimeMillis() - lockedTime);
+            throw new RsLockTimeoutException(System.currentTimeMillis() - lockedTime, timeout);
         }
     }
 
     public static class RsLockTimeoutException extends Exception {
-        private static final String MSG_TMPL = "RLockTimeout:duration=%s";
+        private static final String MSG_TMPL = "RsLockTimeout:duration=%sms,timeout=%sms";
 
-        RsLockTimeoutException(long duration) {
-            super(String.format(MSG_TMPL, duration));
+        RsLockTimeoutException(long duration, long timeout) {
+            super(String.format(MSG_TMPL, duration, timeout * 1000));
         }
     }
 }

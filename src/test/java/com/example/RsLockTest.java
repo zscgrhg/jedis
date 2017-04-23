@@ -21,7 +21,7 @@ public class RsLockTest {
         RsLock rsLock = new RsLock(jedis, "testTryLockSuccess", 4);
         if(rsLock.lock()){
             RsLock rsLock2 = new RsLock(jedis, "testTryLockSuccess", 4);
-            boolean b = rsLock2.tryLock(5000);
+            boolean b = rsLock2.tryLockWithinSeconds(5);
             assert b;
         }
     }
@@ -31,17 +31,25 @@ public class RsLockTest {
 
         if(rsLock.lock()){
             RsLock rsLock2 = new RsLock(jedis, "testTryLockFailed", 4);
-            boolean b = rsLock2.tryLock(3000);
+            boolean b = rsLock2.tryLockWithinSeconds(3);
             assert !b;
         }
     }
 
     @Test(expected = RsLock.RsLockTimeoutException.class)
-    public void testUnlock() throws InterruptedException, RsLock.RsLockTimeoutException {
+    public void testUnlock() throws RsLock.RsLockTimeoutException {
         RsLock rsLock = new RsLock(jedis, "testUnlock", 1);
-        if(rsLock.tryLock(10000)){
-            Thread.sleep(2000);
-            rsLock.unlock();
+        if(rsLock.tryLockWithinSeconds(10)){
+
+            try {
+                Thread.sleep(2000);
+                rsLock.unlock();
+            } catch (RsLock.RsLockTimeoutException e) {
+                e.printStackTrace();
+                throw e;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
