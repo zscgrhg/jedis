@@ -10,8 +10,8 @@ import java.util.UUID;
  * Created by think on 17-4-23.
  */
 public class RsLock {
-    private static final String KEY_TMPL = "GUID_RLOCK{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
-    private static final String WATCHER_KEY_TMPL = "GUID_RLOCK_WATCHER{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
+    private static final String KEY_TMPL = "GUID_RSLOCK{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
+    private static final String WATCHER_KEY_TMPL = "GUID_RSLOCK_WATCHER{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
     private static final String VALUE_TMPL = String.format("%s{%%s}{%%s}", UUID.randomUUID().toString().toUpperCase());
     private final Jedis jedis;
     private final String key;
@@ -19,17 +19,17 @@ public class RsLock {
     private final int timeout;
     private final String identity;
     private static final Random random = new Random();
-    private  final int retryInterval;
+    private  final int maxInterval;
 
     public RsLock(Jedis jedis, String key, int timeout) {
         this(jedis,key,timeout,100);
     }
-    public RsLock(Jedis jedis, String key, int timeout, int retryInterval) {
+    public RsLock(Jedis jedis, String key, int timeout, int maxInterval) {
         this.jedis = jedis;
         this.key = getLockKey(key);
         this.watcherKey = getWatcherKey(key);
         this.timeout = timeout;
-        this.retryInterval = retryInterval;
+        this.maxInterval = maxInterval;
         this.identity = String.format(VALUE_TMPL, System.currentTimeMillis(),random.nextInt(Integer.MAX_VALUE));
     }
 
@@ -72,7 +72,7 @@ public class RsLock {
                 return true;
             } else {
                 try {
-                    Thread.sleep(random.nextInt(retryInterval));
+                    Thread.sleep(random.nextInt(maxInterval));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return false;
