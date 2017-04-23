@@ -12,7 +12,6 @@ import java.util.UUID;
 public class RsLock {
     private static final String KEY_TMPL = "GUID_RSLOCK{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
     private static final String WATCHER_KEY_TMPL = "GUID_RSLOCK_WATCHER{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
-    private static final String VALUE_TMPL = String.format("%s{%%s}{%%s}", UUID.randomUUID().toString().toUpperCase());
     private final Jedis jedis;
     private final String key;
     private final String watcherKey;
@@ -30,7 +29,7 @@ public class RsLock {
         this.watcherKey = getWatcherKey(key);
         this.timeout = timeout;
         this.maxInterval = maxInterval;
-        this.identity = String.format(VALUE_TMPL, System.currentTimeMillis(),random.nextInt(Integer.MAX_VALUE));
+        this.identity = UUID.randomUUID().toString();
     }
 
     public static String getLockKey(String key) {
@@ -95,3 +94,4 @@ public class RsLock {
 
     }
 }
+
