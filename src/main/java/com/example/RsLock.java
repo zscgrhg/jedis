@@ -2,6 +2,7 @@ package com.example;
 
 import redis.clients.jedis.Jedis;
 
+import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
 
@@ -47,26 +48,22 @@ public class RsLock {
             return true;
         } else {
             String guard = jedis.get(guardKey);
-            if (null == guard) {
-                jedis.del(key);
-                return lockNX();
-            } else {
-                return false;
+            if(null==guard){
+                jedis.expire(key, timeout);
             }
+            return false;
         }
     }
 
     private boolean lockNX() {
         Long setnx = jedis.setnx(key, identity);
         if (setnx == 1) {
-            Long expire = jedis.expire(key, timeout);
-            String setex = jedis.setex(guardKey, timeout, identity);
-            if (expire == 1 && "ok".equalsIgnoreCase(setex)) {
-                if (lockedTime <= 0) {
-                    lockedTime = System.currentTimeMillis();
-                }
-                return true;
+            jedis.expire(key, timeout);
+            jedis.setex(guardKey, timeout, identity);
+            if (lockedTime <= 0) {
+                lockedTime = System.currentTimeMillis();
             }
+            return true;
         }
         return false;
     }
@@ -105,6 +102,7 @@ public class RsLock {
         if (identity.equalsIgnoreCase(exist)) {
             jedis.del(key, guardKey);
         } else {
+            System.out.println(exist+" >< "+identity);
             throw new RsLockTimeoutException(System.currentTimeMillis() - lockedTime, timeout);
         }
     }
