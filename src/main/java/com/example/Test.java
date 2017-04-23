@@ -2,6 +2,8 @@ package com.example;
 
 import redis.clients.jedis.Jedis;
 
+import java.util.Random;
+
 /**
  * Created by think on 17-4-23.
  */
@@ -20,12 +22,18 @@ public class Test {
         new Thread(new Runnable() {
             public void run() {
                 Jedis jedis = new Jedis("localhost");
+                Random random = new Random();
                 while (!Thread.currentThread().isInterrupted()) {
                     String oops = RLock.getLockKey("OOPS");
-                    jedis.set(oops, "DL");
-                    System.out.print(">");
+
+                    if(random.nextBoolean()
+                            &&random.nextBoolean()
+                            &&random.nextBoolean()){
+                        jedis.set(oops, "DeadLock!");
+                    }
+                    System.out.println(">"+jedis.get(oops));
                     try {
-                        Thread.sleep(120);
+                        Thread.sleep(1000);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }

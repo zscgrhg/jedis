@@ -11,7 +11,7 @@ import java.util.UUID;
 public class RLock {
     private static final String KEY_TMPL = "GUID_RLOCK{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
     private static final String WATCHER_KEY_TMPL = "GUID_RLOCK_WATCHER{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
-    private static final String VALUE_TMPL = String.format("%s{%%s}", UUID.randomUUID().toString().toUpperCase());
+    private static final String VALUE_TMPL = String.format("%s{%%s}{%%s}", UUID.randomUUID().toString().toUpperCase());
     private final Jedis jedis;
     private final String key;
     private final String watcherKey;
@@ -24,8 +24,7 @@ public class RLock {
         this.key = getLockKey(key);
         this.watcherKey = getWatcherKey(key);
         this.timeout = timeout;
-        this.identity = String.format(VALUE_TMPL, System.currentTimeMillis());
-
+        this.identity = String.format(VALUE_TMPL, System.currentTimeMillis(),random.nextInt(Integer.MAX_VALUE));
     }
 
     public static String getLockKey(String key) {
