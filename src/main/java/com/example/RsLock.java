@@ -9,7 +9,7 @@ import java.util.UUID;
  * https://redis.io/topics/distlock
  * Created by think on 17-4-23.
  */
-public class RLock {
+public class RsLock {
     private static final String KEY_TMPL = "GUID_RLOCK{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
     private static final String WATCHER_KEY_TMPL = "GUID_RLOCK_WATCHER{8125CFBE-9237-4E0A-947C-CE99A1BD587E}_%s";
     private static final String VALUE_TMPL = String.format("%s{%%s}{%%s}", UUID.randomUUID().toString().toUpperCase());
@@ -19,12 +19,17 @@ public class RLock {
     private final int timeout;
     private final String identity;
     private static final Random random = new Random();
+    private  final int retryInterval;
 
-    public RLock(Jedis jedis, String key, int timeout) {
+    public RsLock(Jedis jedis, String key, int timeout) {
+        this(jedis,key,timeout,100);
+    }
+    public RsLock(Jedis jedis, String key, int timeout, int retryInterval) {
         this.jedis = jedis;
         this.key = getLockKey(key);
         this.watcherKey = getWatcherKey(key);
         this.timeout = timeout;
+        this.retryInterval = retryInterval;
         this.identity = String.format(VALUE_TMPL, System.currentTimeMillis(),random.nextInt(Integer.MAX_VALUE));
     }
 
@@ -67,7 +72,7 @@ public class RLock {
                 return true;
             } else {
                 try {
-                    Thread.sleep(random.nextInt(50));
+                    Thread.sleep(random.nextInt(retryInterval));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return false;
