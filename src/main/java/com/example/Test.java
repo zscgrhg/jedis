@@ -19,11 +19,9 @@ public class Test {
                 Jedis jedis = new Jedis("localhost");
                 Random random = new Random();
                 while (!Thread.currentThread().isInterrupted()) {
-                    String oops = RLock.getLockKey("OOPS");
+                    String oops = RsLock.getLockKey("OOPS");
 
-                    if(random.nextBoolean()
-                            &&random.nextBoolean()
-                            &&random.nextBoolean()){
+                    if(random.nextBoolean()){
                         jedis.set(oops, "DeadLock!");
                     }
                     System.out.println(">"+jedis.get(oops));
@@ -36,14 +34,14 @@ public class Test {
             }
         }).start();
         for (int i = 0; i < 100; i++) {
-            RLock rLock = new RLock(jedis, "OOPS", 3);
-            if (rLock.tryLock(10000)) {
+            RsLock rsLock = new RsLock(jedis, "OOPS", 3);
+            if (rsLock.tryLock(10000)) {
                 System.out.println("lock oops success!");
                 if (i % 5 > 1) {
                     Thread.sleep(200);
                     try {
-                        rLock.unlock();
-                    } catch (RLock.RLockTimeoutException e) {
+                        rsLock.unlock();
+                    } catch (RsLock.RLockTimeoutException e) {
                         e.printStackTrace();
                     }
                 }
