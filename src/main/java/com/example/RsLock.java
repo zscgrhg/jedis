@@ -12,10 +12,8 @@ import java.util.UUID;
  */
 public class RsLock {
     private static final String KEY_TMPL = "GUID_RSLOCK{8125CFBE-9237-4E0A-947C-CE99A1BD587E}{%s}";
-    private static final String GUARD_KEY_TMPL = "GUID_RSLOCK_GUARD{8125CFBE-9237-4E0A-947C-CE99A1BD587E}{%s}";
     private final Jedis jedis;
     private final String key;
-    private final String guardKey;
     private final int timeout;
     private final String identity;
     private static final Random random = new Random();
@@ -29,7 +27,6 @@ public class RsLock {
     public RsLock(Jedis jedis, String key, int timeout, int maxInterval) {
         this.jedis = jedis;
         this.key = getLockKey(key);
-        this.guardKey = getGuardKey(key);
         this.timeout = timeout;
         this.maxInterval = maxInterval;
         this.identity = UUID.randomUUID().toString();
@@ -39,27 +36,11 @@ public class RsLock {
         return String.format(KEY_TMPL, key);
     }
 
-    private static String getGuardKey(String key) {
-        return String.format(GUARD_KEY_TMPL, key);
-    }
+
 
     public boolean lock() {
-        if (lockNX()) {
-            return true;
-        } else {
-            String guard = jedis.get(guardKey);
-            if(null==guard){
-                jedis.expire(key, timeout);
-            }
-            return false;
-        }
-    }
-
-    private boolean lockNX() {
-        Long setnx = jedis.setnx(key, identity);
-        if (setnx == 1) {
-            jedis.expire(key, timeout);
-            jedis.setex(guardKey, timeout, identity);
+        String ok=jedis.set(key, identity,"nx","ex",timeout);
+        if ("ok".equalsIgnoreCase(ok)) {
             if (lockedTime <= 0) {
                 lockedTime = System.currentTimeMillis();
             }
@@ -67,6 +48,7 @@ public class RsLock {
         }
         return false;
     }
+
     /**
      * @param sec seconds
      */
@@ -100,7 +82,7 @@ public class RsLock {
     public void unlock() throws RsLockTimeoutException {
         String exist = jedis.get(key);
         if (identity.equalsIgnoreCase(exist)) {
-            jedis.del(key, guardKey);
+            jedis.del(key);
         } else {
             System.out.println(exist+" >< "+identity);
             throw new RsLockTimeoutException(System.currentTimeMillis() - lockedTime, timeout);
